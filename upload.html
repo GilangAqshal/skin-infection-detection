@@ -12,29 +12,60 @@
     <div id="toast-container"></div>
 
     <!-- ── NAVBAR ──────────────────────────────────────────────── -->
-    <nav class="navbar">
+    <nav class="navbar" role="navigation" aria-label="Main navigation">
       <div class="container">
         <div class="flex items-center justify-between">
-          <a href="index.html" class="logo-text">⚕ Wotech</a>
+          <!-- Logo -->
+          <a href="index.html" class="logo-text" aria-label="Wotech Home"
+            >⚕ Wotech</a
+          >
+
+          <!-- Desktop links -->
           <div class="hidden md:flex items-center gap-8">
             <a href="index.html" class="nav-link">Home</a>
             <a href="upload.html" class="nav-link">Upload Gambar</a>
             <a href="camera.html" class="nav-link">Camera Detection</a>
-            <a href="index.html#contact" class="nav-link">Contact</a>
+            <a href="#contact" class="nav-link">Contact</a>
           </div>
+
+          <!-- CTA -->
+          <div class="hidden md:flex items-center gap-3">
+            <a
+              href="upload.html"
+              class="btn-primary"
+              style="padding: 10px 20px; font-size: 0.85rem"
+            >
+              Coba Sekarang
+            </a>
+          </div>
+
+          <!-- Hamburger -->
           <button
             class="hamburger md:hidden"
             id="hamburger"
             aria-label="Toggle menu"
+            aria-expanded="false"
           >
             <span></span><span></span><span></span>
           </button>
         </div>
-        <div class="mobile-menu" id="mobile-menu">
-          <a href="index.html" class="nav-link">🏠 Home</a>
-          <a href="upload.html" class="nav-link">📷 Upload Gambar</a>
-          <a href="camera.html" class="nav-link">🎥 Camera Detection</a>
-          <a href="index.html#contact" class="nav-link">📬 Contact</a>
+
+        <!-- Mobile menu -->
+        <div class="mobile-menu" id="mobile-menu" role="menu">
+          <a href="index.html" class="nav-link" role="menuitem">🏠 Home</a>
+          <a href="upload.html" class="nav-link" role="menuitem"
+            >📷 Upload Gambar</a
+          >
+          <a href="camera.html" class="nav-link" role="menuitem"
+            >🎥 Camera Detection</a
+          >
+          <a href="#contact" class="nav-link" role="menuitem">📬 Contact</a>
+          <a
+            href="upload.html"
+            class="btn-primary mt-2"
+            style="justify-content: center"
+            >Coba Sekarang →</a
+          >
         </div>
       </div>
     </nav>
