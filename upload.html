@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Upload Gambar | Wotech Skin Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="mesh-bg" aria-hidden="true"><div class="mesh-orb"></div></div>
+    <div id="toast-container"></div>
+
+    <!-- ── NAVBAR ──────────────────────────────────────────────── -->
+    <nav class="navbar">
+      <div class="container">
+        <div class="flex items-center justify-between">
+          <a href="index.html" class="logo-text">⚕ Wotech</a>
+          <div class="hidden md:flex items-center gap-8">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="upload.html" class="nav-link">Upload Gambar</a>
+            <a href="camera.html" class="nav-link">Camera Detection</a>
+            <a href="index.html#contact" class="nav-link">Contact</a>
+          </div>
+          <button
+            class="hamburger md:hidden"
+            id="hamburger"
+            aria-label="Toggle menu"
+          >
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+        <div class="mobile-menu" id="mobile-menu">
+          <a href="index.html" class="nav-link">🏠 Home</a>
+          <a href="upload.html" class="nav-link">📷 Upload Gambar</a>
+          <a href="camera.html" class="nav-link">🎥 Camera Detection</a>
+          <a href="index.html#contact" class="nav-link">📬 Contact</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ── PAGE HEADER ─────────────────────────────────────────── -->
+    <div class="page-header relative z-10">
+      <div class="container">
+        <div class="section-label" style="margin: 0 auto 16px">
+          📷 Upload & Deteksi
+        </div>
+        <h1
+          class="gradient-text fade-in"
+          style="font-size: clamp(2rem, 4vw, 3rem); margin-bottom: 12px"
+        >
+          Unggah Gambar Kulit
+        </h1>
+        <p
+          style="
+            color: var(--muted);
+            max-width: 520px;
+            margin: 0 auto;
+            font-size: 1rem;
+          "
+          class="fade-in fade-in-delay-1"
+        >
+          Upload foto area kulit yang ingin diperiksa. AI kami akan menganalisis
+          dan memberikan hasil deteksi dalam hitungan detik.
+        </p>
+      </div>
+    </div>
+
+    <!-- ── MAIN CONTENT ────────────────────────────────────────── -->
+    <main class="relative z-10" style="padding-bottom: 100px">
+      <div class="container">
+        <div class="grid lg:grid-cols-2 gap-8">
+          <!-- ── LEFT: Upload Panel ──────────────────────────── -->
+          <div>
+            <!-- Upload zone -->
+            <div
+              class="glass-strong"
+              style="padding: 28px; margin-bottom: 20px"
+            >
+              <h2
+                style="
+                  font-size: 1.1rem;
+                  font-weight: 700;
+                  margin-bottom: 20px;
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                "
+              >
+                📁 Pilih Gambar
+              </h2>
+
+              <div class="upload-zone" id="upload-zone">
+                <input
+                  type="file"
+                  id="file-input"
+                  accept="image/*"
+                  aria-label="Upload gambar kulit"
+                />
+                <div id="upload-placeholder">
+                  <div
+                    style="font-size: 3rem; margin-bottom: 16px; opacity: 0.6"
+                  >
+                    🖼️
+                  </div>
+                  <p
+                    style="
+                      font-size: 1rem;
+                      font-weight: 600;
+                      margin-bottom: 8px;
+                    "
+                  >
+                    Drag & drop gambar di sini
+                  </p>
+                  <p style="color: var(--muted); font-size: 0.85rem">
+                    atau klik untuk memilih file
+                  </p>
+                  <p
+                    style="
+                      color: var(--muted);
+                      font-size: 0.78rem;
+                      margin-top: 12px;
+                    "
+                  >
+                    Format: JPG, PNG, WEBP · Maks. 10MB
+                  </p>
+                </div>
+              </div>
+
+              <!-- Preview -->
+              <div id="preview-section" style="display: none; margin-top: 20px">
+                <div class="img-preview-wrap">
+                  <img
+                    id="preview-img"
+                    src=""
+                    alt="Preview gambar yang diupload"
+                  />
+                  <canvas
+                    id="preview-canvas"
+                    aria-label="Bounding box overlay"
+                  ></canvas>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    gap: 10px;
+                    margin-top: 12px;
+                    flex-wrap: wrap;
+                  "
+                >
+                  <button
+                    class="btn-primary"
+                    id="detect-btn"
+                    style="flex: 1; justify-content: center"
+                  >
+                    🔍 Deteksi Sekarang
+                  </button>
+                  <button
+                    class="btn-secondary"
+                    id="clear-btn"
+                    style="padding: 13px 20px"
+                  >
+                    🗑️ Hapus
+                  </button>
+                </div>
+              </div>
+
+              <!-- Loading overlay (inside card) -->
+              <div
+                id="loading-overlay"
+                style="display: none; text-align: center; padding: 40px 0"
+              >
+                <div class="spinner" style="margin: 0 auto 16px"></div>
+                <p
+                  style="color: var(--muted); font-size: 0.9rem"
+                  id="loading-text"
+                >
+                  Mengirim gambar ke AI…
+                </p>
+              </div>
+            </div>
+
+            <!-- Tips -->
+            <div class="tip-box">
+              <div style="display: flex; align-items: flex-start; gap: 12px">
+                <span style="font-size: 1.2rem; flex-shrink: 0">💡</span>
+                <div>
+                  <h4
+                    style="
+                      font-size: 0.9rem;
+                      font-weight: 600;
+                      margin-bottom: 8px;
+                    "
+                  >
+                    Tips untuk Hasil Terbaik
+                  </h4>
+                  <ul
+                    style="
+                      color: var(--muted);
+                      font-size: 0.85rem;
+                      line-height: 1.9;
+                    "
+                  >
+                    <li>• Pastikan pencahayaan cukup dan gambar tidak buram</li>
+                    <li>• Area kulit yang terkena harus terlihat jelas</li>
+                    <li>• Foto dengan jarak 15–30 cm dari kulit</li>
+                    <li>• Hindari pantulan cahaya berlebih</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── RIGHT: Result Panel ─────────────────────────── -->
+          <div id="result-panel">
+            <!-- Empty state -->
+            <div
+              class="glass-strong"
+              id="empty-state"
+              style="
+                padding: 28px;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+              "
+            >
+              <div class="empty-state">
+                <div class="empty-state-icon">🔬</div>
+                <h3
+                  style="
+                    font-size: 1.1rem;
+                    font-weight: 600;
+                    color: var(--text);
+                  "
+                >
+                  Belum Ada Hasil
+                </h3>
+                <p style="font-size: 0.9rem; max-width: 280px">
+                  Upload gambar kulit dan klik "Deteksi Sekarang" untuk memulai
+                  analisis AI.
+                </p>
+              </div>
+            </div>
+
+            <!-- Results (hidden until detected) -->
+            <div
+              id="results-container"
+              style="
+                display: none;
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+              "
+            >
+              <!-- Diagnosis card -->
+              <div class="result-card" id="diagnosis-card">
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    flex-wrap: wrap;
+                    gap: 12px;
+                    margin-bottom: 20px;
+                  "
+                >
+                  <div>
+                    <div
+                      style="
+                        font-size: 0.75rem;
+                        color: var(--muted);
+                        font-weight: 600;
+                        letter-spacing: 0.08em;
+                        text-transform: uppercase;
+                        margin-bottom: 6px;
+                      "
+                    >
+                      Hasil Diagnosa
+                    </div>
+                    <h3
+                      id="diagnosis-name"
+                      style="
+                        font-size: 1.4rem;
+                        font-weight: 800;
+                        font-family: var(--font-display);
+                      "
+                    >
+                      —
+                    </h3>
+                  </div>
+                  <span
+                    class="badge-confidence badge-high"
+                    id="confidence-badge"
+                    >—</span
+                  >
+                </div>
+
+                <!-- Progress bar -->
+                <div style="margin-bottom: 16px">
+                  <div
+                    style="
+                      display: flex;
+                      justify-content: space-between;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    <span style="font-size: 0.8rem; color: var(--muted)"
+                      >Confidence Score</span
+                    >
+                    <span
+                      style="font-size: 0.8rem; font-weight: 700"
+                      id="confidence-pct"
+                      >0%</span
+                    >
+                  </div>
+                  <div class="progress-bar">
+                    <div
+                      class="progress-fill"
+                      id="confidence-bar"
+                      style="width: 0%"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- Meta -->
+                <div style="display: flex; gap: 16px; flex-wrap: wrap">
+                  <div
+                    class="glass"
+                    style="
+                      padding: 10px 16px;
+                      border-radius: 12px;
+                      flex: 1;
+                      min-width: 120px;
+                    "
+                  >
+                    <div
+                      style="
+                        font-size: 0.75rem;
+                        color: var(--muted);
+                        margin-bottom: 4px;
+                      "
+                    >
+                      Waktu Prediksi
+                    </div>
+                    <div
+                      style="font-size: 1rem; font-weight: 700"
+                      id="pred-time"
+                    >
+                      —
+                    </div>
+                  </div>
+                  <div
+                    class="glass"
+                    style="
+                      padding: 10px 16px;
+                      border-radius: 12px;
+                      flex: 1;
+                      min-width: 120px;
+                    "
+                  >
+                    <div
+                      style="
+                        font-size: 0.75rem;
+                        color: var(--muted);
+                        margin-bottom: 4px;
+                      "
+                    >
+                      Total Deteksi
+                    </div>
+                    <div
+                      style="font-size: 1rem; font-weight: 700"
+                      id="total-detections"
+                    >
+                      —
+                    </div>
+                  </div>
+                  <div
+                    class="glass"
+                    style="
+                      padding: 10px 16px;
+                      border-radius: 12px;
+                      flex: 1;
+                      min-width: 120px;
+                    "
+                  >
+                    <div
+                      style="
+                        font-size: 0.75rem;
+                        color: var(--muted);
+                        margin-bottom: 4px;
+                      "
+                    >
+                      Status
+                    </div>
+                    <div
+                      style="
+                        font-size: 0.9rem;
+                        font-weight: 700;
+                        color: #34d399;
+                      "
+                      id="detection-status"
+                    >
+                      —
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Disease info card -->
+              <div class="info-card" id="disease-info-card">
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    margin-bottom: 16px;
+                  "
+                >
+                  <div
+                    class="info-card-icon"
+                    id="disease-icon-box"
+                    style="background: rgba(99, 102, 241, 0.15)"
+                  >
+                    ℹ️
+                  </div>
+                  <div>
+                    <div
+                      style="
+                        font-size: 0.75rem;
+                        color: var(--muted);
+                        letter-spacing: 0.08em;
+                        text-transform: uppercase;
+                        font-weight: 600;
+                      "
+                    >
+                      Tentang Penyakit
+                    </div>
+                    <h4
+                      id="disease-info-title"
+                      style="font-size: 1rem; font-weight: 700"
+                    >
+                      —
+                    </h4>
+                  </div>
+                </div>
+                <p
+                  id="disease-description"
+                  style="
+                    color: var(--muted);
+                    font-size: 0.9rem;
+                    line-height: 1.8;
+                    margin-bottom: 16px;
+                  "
+                >
+                  —
+                </p>
+                <div
+                  class="glass"
+                  style="padding: 14px 16px; border-radius: 12px"
+                >
+                  <div
+                    style="
+                      font-size: 0.75rem;
+                      color: var(--muted);
+                      font-weight: 600;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    ⚠️ PENYEBAB
+                  </div>
+                  <p
+                    id="disease-causes"
+                    style="
+                      font-size: 0.85rem;
+                      line-height: 1.7;
+                      color: var(--text);
+                    "
+                  >
+                    —
+                  </p>
+                </div>
+              </div>
+
+              <!-- Recommendations card -->
+              <div class="info-card" id="recommendations-card">
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    margin-bottom: 16px;
+                  "
+                >
+                  <div
+                    class="info-card-icon"
+                    style="background: rgba(16, 185, 129, 0.15)"
+                  >
+                    🩺
+                  </div>
+                  <div>
+                    <div
+                      style="
+                        font-size: 0.75rem;
+                        color: var(--muted);
+                        letter-spacing: 0.08em;
+                        text-transform: uppercase;
+                        font-weight: 600;
+                      "
+                    >
+                      Rekomendasi Penanganan
+                    </div>
+                    <h4 style="font-size: 1rem; font-weight: 700">
+                      Langkah Awal
+                    </h4>
+                  </div>
+                </div>
+                <ul
+                  id="recommendations-list"
+                  style="
+                    list-style: none;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                  "
+                >
+                  <!-- Populated by JS -->
+                </ul>
+                <!-- Medical disclaimer -->
+                <div
+                  style="
+                    margin-top: 16px;
+                    padding: 12px 16px;
+                    background: rgba(239, 68, 68, 0.06);
+                    border: 1px solid rgba(239, 68, 68, 0.2);
+                    border-radius: 12px;
+                  "
+                >
+                  <p
+                    style="font-size: 0.8rem; color: #f87171; line-height: 1.7"
+                  >
+                    ⚠️ <strong>Perhatian:</strong> Hasil ini hanya bersifat
+                    informatif dan tidak menggantikan diagnosis medis
+                    profesional. Segera konsultasikan ke dokter atau puskesmas
+                    terdekat.
+                  </p>
+                </div>
+              </div>
+
+              <!-- All detections table (if multiple) -->
+              <div
+                class="info-card"
+                id="all-detections-card"
+                style="display: none"
+              >
+                <div
+                  style="
+                    font-size: 0.75rem;
+                    color: var(--muted);
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                    font-weight: 600;
+                    margin-bottom: 12px;
+                  "
+                >
+                  📊 Semua Deteksi
+                </div>
+                <div
+                  id="all-detections-list"
+                  style="display: flex; flex-direction: column; gap: 8px"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ── FOOTER ──────────────────────────────────────────────── -->
+    <footer class="footer relative z-10">
+      <div
+        class="container"
+        style="
+          padding-top: 32px;
+          padding-bottom: 32px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          justify-content: space-between;
+          align-items: center;
+        "
+      >
+        <a href="index.html" class="logo-text">⚕ Wotech</a>
+        <p style="color: var(--muted); font-size: 0.85rem">
+          © 2025 Team Wotech · YOLOv11 + Roboflow
+        </p>
+      </div>
+    </footer>
+
+    <script src="js/script.js"></script>
+    <script>
+      /* ============================================================
+   upload.js — Upload page logic
+============================================================ */
+
+      const fileInput = document.getElementById("file-input");
+      const uploadZone = document.getElementById("upload-zone");
+      const uploadPlaceholder = document.getElementById("upload-placeholder");
+      const previewSection = document.getElementById("preview-section");
+      const previewImg = document.getElementById("preview-img");
+      const previewCanvas = document.getElementById("preview-canvas");
+      const detectBtn = document.getElementById("detect-btn");
+      const clearBtn = document.getElementById("clear-btn");
+      const loadingOverlay = document.getElementById("loading-overlay");
+      const loadingText = document.getElementById("loading-text");
+      const emptyState = document.getElementById("empty-state");
+      const resultsContainer = document.getElementById("results-container");
+
+      // Current state
+      let currentFile = null;
+      let currentPredictions = [];
+
+      // ── Drag & Drop ───────────────────────────────────────────────
+      uploadZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        uploadZone.classList.add("drag-over");
+      });
+      uploadZone.addEventListener("dragleave", () =>
+        uploadZone.classList.remove("drag-over"),
+      );
+      uploadZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove("drag-over");
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+      });
+
+      // File input change
+      fileInput.addEventListener("change", () => {
+        if (fileInput.files[0]) handleFile(fileInput.files[0]);
+      });
+
+      // ── Handle file selection ──────────────────────────────────────
+      function handleFile(file) {
+        if (!file.type.startsWith("image/")) {
+          showToast("File harus berupa gambar (JPG, PNG, WEBP).", "error");
+          return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          showToast("Ukuran file maksimal 10MB.", "error");
+          return;
+        }
+        currentFile = file;
+        currentPredictions = [];
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          previewImg.src = e.target.result;
+          previewImg.onload = () => {
+            // Reset canvas
+            const ctx = previewCanvas.getContext("2d");
+            ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+          };
+          uploadPlaceholder.style.display = "none";
+          previewSection.style.display = "block";
+          // Reset results
+          emptyState.style.display = "flex";
+          resultsContainer.style.display = "none";
+          showToast("Gambar berhasil dimuat!", "success");
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // ── Clear ──────────────────────────────────────────────────────
+      clearBtn.addEventListener("click", () => {
+        currentFile = null;
+        previewImg.src = "";
+        fileInput.value = "";
+        const ctx = previewCanvas.getContext("2d");
+        ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+        uploadPlaceholder.style.display = "block";
+        previewSection.style.display = "none";
+        emptyState.style.display = "flex";
+        resultsContainer.style.display = "none";
+      });
+
+      // ── Detect button ──────────────────────────────────────────────
+      detectBtn.addEventListener("click", async () => {
+        if (!currentFile) {
+          showToast("Pilih gambar terlebih dahulu.", "warning");
+          return;
+        }
+
+        // Show loading
+        previewSection.style.display = "none";
+        loadingOverlay.style.display = "block";
+        emptyState.style.display = "none";
+        resultsContainer.style.display = "none";
+        detectBtn.disabled = true;
+
+        const loadingMessages = [
+          "Mengirim gambar ke AI…",
+          "Model YOLOv11 sedang menganalisis…",
+          "Mendeteksi area yang terinfeksi…",
+          "Memproses confidence score…",
+        ];
+        let mi = 0;
+        const msgInterval = setInterval(() => {
+          mi = (mi + 1) % loadingMessages.length;
+          loadingText.textContent = loadingMessages[mi];
+        }, 900);
+
+        try {
+          const { predictions, time } = await detectDisease(currentFile);
+          currentPredictions = predictions;
+          clearInterval(msgInterval);
+          renderResults(predictions, time);
+          drawOverlay(predictions);
+          showToast("Deteksi selesai!", "success");
+        } catch (err) {
+          clearInterval(msgInterval);
+          showToast("Gagal terhubung ke API: " + err.message, "error");
+          // Show preview again
+          previewSection.style.display = "block";
+          emptyState.style.display = "flex";
+          console.error(err);
+        } finally {
+          loadingOverlay.style.display = "none";
+          previewSection.style.display = "block";
+          detectBtn.disabled = false;
+        }
+      });
+
+      // ── Render results ─────────────────────────────────────────────
+      function renderResults(predictions, time) {
+        if (!predictions || predictions.length === 0) {
+          // No detection
+          document.getElementById("diagnosis-name").textContent =
+            "Tidak Terdeteksi";
+          document.getElementById("confidence-badge").textContent = "—";
+          document.getElementById("confidence-badge").className =
+            "badge-confidence";
+          document.getElementById("confidence-pct").textContent = "0%";
+          document.getElementById("confidence-bar").style.width = "0%";
+          document.getElementById("pred-time").textContent = formatMs(time);
+          document.getElementById("total-detections").textContent = "0 objek";
+          document.getElementById("detection-status").textContent = "Tidak Ada";
+          document.getElementById("detection-status").style.color = "#94a3b8";
+          document.getElementById("disease-info-title").textContent =
+            "Tidak Ada Penyakit Terdeteksi";
+          document.getElementById("disease-description").textContent =
+            "Model tidak menemukan penyakit kulit infeksi pada gambar ini. Pastikan gambar menunjukkan area kulit yang terkena secara jelas.";
+          document.getElementById("disease-causes").textContent = "—";
+          document.getElementById("recommendations-list").innerHTML = `
+      <li style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--glass);border-radius:10px;">
+        <span style="flex-shrink:0;">✅</span>
+        <span style="font-size:0.88rem;line-height:1.7;color:var(--muted);">Kulit tampak normal. Jika masih ada keluhan, coba foto dari sudut yang lebih dekat atau konsultasikan ke dokter.</span>
+      </li>`;
+          document.getElementById("all-detections-card").style.display = "none";
+          emptyState.style.display = "none";
+          resultsContainer.style.display = "flex";
+          return;
+        }
+
+        // Sort by confidence descending
+        predictions.sort((a, b) => b.confidence - a.confidence);
+        const top = predictions[0];
+        const conf = top.confidence;
+        const confPct = Math.round(conf * 100);
+        const key = normalizeLabel(top.class);
+        const info = key ? DISEASE_INFO[key] : null;
+
+        // Diagnosis
+        document.getElementById("diagnosis-name").textContent = info
+          ? info.name
+          : top.class.charAt(0).toUpperCase() + top.class.slice(1);
+        document.getElementById("confidence-badge").textContent =
+          `${confPct}% Confidence`;
+        document.getElementById("confidence-badge").className =
+          `badge-confidence ${confidenceBadgeClass(conf)}`;
+        document.getElementById("confidence-pct").textContent = `${confPct}%`;
+
+        // Animate bar
+        setTimeout(() => {
+          document.getElementById("confidence-bar").style.width = `${confPct}%`;
+        }, 100);
+
+        document.getElementById("pred-time").textContent = formatMs(time);
+        document.getElementById("total-detections").textContent =
+          `${predictions.length} objek`;
+        document.getElementById("detection-status").textContent = "Terdeteksi";
+        document.getElementById("detection-status").style.color = "#34d399";
+
+        // Disease info
+        if (info) {
+          document.getElementById("disease-info-title").textContent = info.name;
+          document.getElementById("disease-description").textContent =
+            info.description;
+          document.getElementById("disease-causes").textContent = info.causes;
+          document.getElementById("disease-icon-box").textContent = info.emoji;
+          document.getElementById("disease-icon-box").style.background =
+            info.color + "22";
+
+          // Recommendations
+          const recList = document.getElementById("recommendations-list");
+          recList.innerHTML = info.handling
+            .map(
+              (h) => `
+      <li style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--glass);border-radius:10px;">
+        <span style="flex-shrink:0;font-size:1rem;">✅</span>
+        <span style="font-size:0.88rem;line-height:1.7;color:var(--muted);">${h}</span>
+      </li>`,
+            )
+            .join("");
+        } else {
+          document.getElementById("disease-info-title").textContent = top.class;
+          document.getElementById("disease-description").textContent =
+            "Informasi penyakit ini belum tersedia di database kami. Silakan konsultasikan ke tenaga medis.";
+          document.getElementById("disease-causes").textContent = "—";
+          document.getElementById("recommendations-list").innerHTML = `
+      <li style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--glass);border-radius:10px;">
+        <span style="flex-shrink:0;">🩺</span>
+        <span style="font-size:0.88rem;line-height:1.7;color:var(--muted);">Segera konsultasikan ke dokter atau tenaga medis untuk penanganan lebih lanjut.</span>
+      </li>`;
+        }
+
+        // All detections (if >1)
+        const allCard = document.getElementById("all-detections-card");
+        const allList = document.getElementById("all-detections-list");
+        if (predictions.length > 1) {
+          allList.innerHTML = predictions
+            .map((p) => {
+              const k2 = normalizeLabel(p.class);
+              const i2 = k2 ? DISEASE_INFO[k2] : null;
+              const pct = Math.round(p.confidence * 100);
+              return `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--glass);border-radius:10px;">
+          <span style="font-size:1.2rem;">${i2?.emoji || "🔵"}</span>
+          <span style="flex:1;font-size:0.9rem;font-weight:600;">${i2?.name.split("(")[0].trim() || p.class}</span>
+          <span class="badge-confidence ${confidenceBadgeClass(p.confidence)}" style="font-size:0.78rem;">${pct}%</span>
+        </div>`;
+            })
+            .join("");
+          allCard.style.display = "block";
+        } else {
+          allCard.style.display = "none";
+        }
+
+        emptyState.style.display = "none";
+        resultsContainer.style.display = "flex";
+      }
+
+      // ── Draw bounding boxes on preview ────────────────────────────
+      function drawOverlay(predictions) {
+        if (!predictions || !predictions.length) return;
+        const img = previewImg;
+
+        previewCanvas.width = img.naturalWidth || img.width;
+        previewCanvas.height = img.naturalHeight || img.height;
+
+        drawBBoxes(
+          previewCanvas,
+          predictions,
+          previewCanvas.width,
+          previewCanvas.height,
+        );
+      }
+    </script>
+  </body>
+</html>

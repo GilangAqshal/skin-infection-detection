@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Camera Detection | Wotech Skin Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="mesh-bg" aria-hidden="true"><div class="mesh-orb"></div></div>
+    <div id="toast-container"></div>
+
+    <!-- ── NAVBAR ──────────────────────────────────────────────── -->
+    <nav class="navbar">
+      <div class="container">
+        <div class="flex items-center justify-between">
+          <a href="index.html" class="logo-text">⚕ Wotech</a>
+          <div class="hidden md:flex items-center gap-8">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="upload.html" class="nav-link">Upload Gambar</a>
+            <a href="camera.html" class="nav-link">Camera Detection</a>
+            <a href="index.html#contact" class="nav-link">Contact</a>
+          </div>
+          <button
+            class="hamburger md:hidden"
+            id="hamburger"
+            aria-label="Toggle menu"
+          >
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+        <div class="mobile-menu" id="mobile-menu">
+          <a href="index.html" class="nav-link">🏠 Home</a>
+          <a href="upload.html" class="nav-link">📷 Upload Gambar</a>
+          <a href="camera.html" class="nav-link">🎥 Camera Detection</a>
+          <a href="index.html#contact" class="nav-link">📬 Contact</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ── PAGE HEADER ─────────────────────────────────────────── -->
+    <div class="page-header relative z-10">
+      <div class="container">
+        <div class="section-label" style="margin: 0 auto 16px">
+          🎥 Real-Time Detection
+        </div>
+        <h1
+          class="gradient-text fade-in"
+          style="font-size: clamp(2rem, 4vw, 3rem); margin-bottom: 12px"
+        >
+          Deteksi Menggunakan Kamera
+        </h1>
+        <p
+          style="
+            color: var(--muted);
+            max-width: 520px;
+            margin: 0 auto;
+            font-size: 1rem;
+          "
+          class="fade-in fade-in-delay-1"
+        >
+          Arahkan kamera ke area kulit yang ingin diperiksa. Sistem akan
+          mendeteksi penyakit secara real-time dengan bounding box.
+        </p>
+      </div>
+    </div>
+
+    <!-- ── MAIN CONTENT ────────────────────────────────────────── -->
+    <main class="relative z-10" style="padding-bottom: 100px">
+      <div class="container">
+        <div class="grid lg:grid-cols-3 gap-8">
+          <!-- ── Camera View (2/3) ──────────────────────────── -->
+          <div class="lg:col-span-2">
+            <!-- Camera container -->
+            <div
+              class="camera-container glass-strong"
+              id="camera-wrap"
+              style="min-height: 320px"
+            >
+              <!-- Placeholder -->
+              <div class="camera-placeholder" id="cam-placeholder">
+                <div style="font-size: 4rem; opacity: 0.4">📷</div>
+                <h3 style="font-size: 1.1rem; font-weight: 600">
+                  Kamera Belum Aktif
+                </h3>
+                <p
+                  style="
+                    color: var(--muted);
+                    font-size: 0.85rem;
+                    max-width: 260px;
+                    text-align: center;
+                  "
+                >
+                  Klik tombol "Mulai Kamera" untuk memulai deteksi real-time
+                </p>
+              </div>
+
+              <!-- Video element -->
+              <video
+                id="camera-video"
+                autoplay
+                playsinline
+                muted
+                style="display: none"
+                aria-label="Live camera feed"
+              ></video>
+
+              <!-- Canvas overlay (bounding boxes) -->
+              <canvas
+                id="camera-canvas"
+                style="display: none"
+                aria-label="Deteksi bounding box"
+              ></canvas>
+
+              <!-- UI overlay (corners + scan line) — only when active -->
+              <div
+                class="camera-overlay-ui"
+                id="cam-ui"
+                style="display: none"
+                aria-hidden="true"
+              >
+                <div class="corner corner-tl"></div>
+                <div class="corner corner-tr"></div>
+                <div class="corner corner-bl"></div>
+                <div class="corner corner-br"></div>
+                <div class="scan-line"></div>
+              </div>
+            </div>
+
+            <!-- Controls row -->
+            <div class="glass-strong" style="padding: 20px; margin-top: 16px">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 16px;
+                  flex-wrap: wrap;
+                  justify-content: space-between;
+                "
+              >
+                <!-- Status indicator -->
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <span class="status-dot" id="status-dot"></span>
+                  <span
+                    id="status-text"
+                    style="
+                      font-size: 0.85rem;
+                      font-weight: 600;
+                      color: var(--muted);
+                    "
+                    >Kamera tidak aktif</span
+                  >
+                </div>
+
+                <!-- Buttons -->
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                  "
+                >
+                  <!-- Start -->
+                  <button
+                    class="cam-btn-primary"
+                    id="start-btn"
+                    aria-label="Mulai kamera"
+                  >
+                    ▶ Mulai Kamera
+                  </button>
+                  <!-- Stop -->
+                  <button
+                    class="cam-btn danger"
+                    id="stop-btn"
+                    title="Stop Kamera"
+                    style="display: none"
+                    aria-label="Stop kamera"
+                  >
+                    ⬛
+                  </button>
+                  <!-- Switch camera -->
+                  <button
+                    class="cam-btn"
+                    id="switch-btn"
+                    title="Switch Kamera"
+                    style="display: none"
+                    aria-label="Ganti kamera"
+                  >
+                    🔄
+                  </button>
+                  <!-- Freeze frame -->
+                  <button
+                    class="cam-btn"
+                    id="freeze-btn"
+                    title="Freeze / Resume"
+                    style="display: none"
+                    aria-label="Freeze frame"
+                  >
+                    ⏸
+                  </button>
+                </div>
+              </div>
+
+              <!-- Camera selector (shown when multiple) -->
+              <div
+                id="camera-selector-wrap"
+                style="
+                  display: none;
+                  margin-top: 16px;
+                  border-top: 1px solid var(--border);
+                  padding-top: 16px;
+                "
+              >
+                <label
+                  style="
+                    font-size: 0.8rem;
+                    color: var(--muted);
+                    font-weight: 600;
+                    display: block;
+                    margin-bottom: 8px;
+                  "
+                  >Pilih Kamera:</label
+                >
+                <select id="camera-selector" aria-label="Pilih kamera"></select>
+              </div>
+            </div>
+
+            <!-- Interval slider -->
+            <div
+              class="glass-strong"
+              style="padding: 20px; margin-top: 12px"
+              id="interval-panel"
+              style="display: none"
+            >
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  margin-bottom: 10px;
+                "
+              >
+                <span style="font-size: 0.85rem; font-weight: 600"
+                  >Interval Deteksi</span
+                >
+                <span
+                  id="interval-label"
+                  style="
+                    font-size: 0.85rem;
+                    color: var(--cyan);
+                    font-weight: 700;
+                  "
+                  >1.5 detik</span
+                >
+              </div>
+              <input
+                type="range"
+                id="interval-slider"
+                min="0.5"
+                max="5"
+                step="0.5"
+                value="1.5"
+                style="width: 100%; accent-color: var(--indigo)"
+                aria-label="Interval deteksi dalam detik"
+              />
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.75rem;
+                  color: var(--muted);
+                  margin-top: 4px;
+                "
+              >
+                <span>0.5s (cepat)</span><span>5s (hemat)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── RIGHT PANEL: Detection Info ───────────────── -->
+          <div class="flex flex-col gap-4">
+            <!-- Live detection results -->
+            <div class="glass-strong" style="padding: 24px">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-bottom: 20px;
+                "
+              >
+                <div
+                  class="status-dot active"
+                  id="live-dot"
+                  style="display: none"
+                ></div>
+                <h3 style="font-size: 1rem; font-weight: 700">Deteksi Live</h3>
+              </div>
+
+              <!-- No detection yet -->
+              <div id="live-empty" class="empty-state" style="padding: 32px 0">
+                <div style="font-size: 2.5rem; opacity: 0.4">👁️</div>
+                <p style="font-size: 0.85rem">
+                  Aktifkan kamera untuk memulai deteksi
+                </p>
+              </div>
+
+              <!-- Detection results list -->
+              <div
+                id="live-results"
+                style="display: none; flex-direction: column; gap: 10px"
+              ></div>
+
+              <!-- No disease found state -->
+              <div
+                id="live-clear"
+                style="display: none; text-align: center; padding: 24px 0"
+              >
+                <div style="font-size: 2rem; margin-bottom: 8px">✅</div>
+                <p style="font-size: 0.85rem; color: var(--muted)">
+                  Tidak ada penyakit terdeteksi
+                </p>
+                <p
+                  style="
+                    font-size: 0.78rem;
+                    color: var(--muted);
+                    opacity: 0.6;
+                    margin-top: 4px;
+                  "
+                >
+                  Arahkan ke area kulit yang terdampak
+                </p>
+              </div>
+            </div>
+
+            <!-- Stats panel -->
+            <div class="glass-strong" style="padding: 24px">
+              <h3
+                style="
+                  font-size: 0.85rem;
+                  font-weight: 700;
+                  color: var(--muted);
+                  text-transform: uppercase;
+                  letter-spacing: 0.08em;
+                  margin-bottom: 16px;
+                "
+              >
+                Statistik Sesi
+              </h3>
+              <div style="display: flex; flex-direction: column; gap: 12px">
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                  "
+                >
+                  <span style="font-size: 0.85rem; color: var(--muted)"
+                    >Total Frame</span
+                  >
+                  <span
+                    style="font-size: 0.95rem; font-weight: 700"
+                    id="stat-frames"
+                    >0</span
+                  >
+                </div>
+                <div class="divider"></div>
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                  "
+                >
+                  <span style="font-size: 0.85rem; color: var(--muted)"
+                    >Deteksi Berhasil</span
+                  >
+                  <span
+                    style="font-size: 0.95rem; font-weight: 700; color: #34d399"
+                    id="stat-detections"
+                    >0</span
+                  >
+                </div>
+                <div class="divider"></div>
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                  "
+                >
+                  <span style="font-size: 0.85rem; color: var(--muted)"
+                    >Kamera</span
+                  >
+                  <span
+                    style="font-size: 0.85rem; font-weight: 600"
+                    id="stat-camera"
+                    >—</span
+                  >
+                </div>
+                <div class="divider"></div>
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                  "
+                >
+                  <span style="font-size: 0.85rem; color: var(--muted)"
+                    >Waktu Aktif</span
+                  >
+                  <span
+                    style="font-size: 0.95rem; font-weight: 700"
+                    id="stat-time"
+                    >00:00</span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="tip-box">
+              <h4
+                style="
+                  font-size: 0.85rem;
+                  font-weight: 600;
+                  margin-bottom: 10px;
+                "
+              >
+                📌 Panduan
+              </h4>
+              <ul
+                style="
+                  font-size: 0.82rem;
+                  color: var(--muted);
+                  line-height: 2;
+                  list-style: none;
+                "
+              >
+                <li>• Pastikan area kulit terlihat jelas di kamera</li>
+                <li>• Hindari gerakan terlalu cepat</li>
+                <li>• Pencahayaan yang baik = akurasi lebih tinggi</li>
+                <li>• Izinkan akses kamera pada browser</li>
+              </ul>
+            </div>
+
+            <!-- Link to upload -->
+            <a
+              href="upload.html"
+              class="btn-secondary"
+              style="justify-content: center; text-align: center"
+            >
+              📷 Coba Upload Gambar
+            </a>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ── FOOTER ──────────────────────────────────────────────── -->
+    <footer class="footer relative z-10">
+      <div
+        class="container"
+        style="
+          padding-top: 32px;
+          padding-bottom: 32px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          justify-content: space-between;
+          align-items: center;
+        "
+      >
+        <a href="index.html" class="logo-text">⚕ Wotech</a>
+        <p style="color: var(--muted); font-size: 0.85rem">
+          © 2025 Team Wotech · YOLOv11 + Roboflow
+        </p>
+      </div>
+    </footer>
+
+    <script src="js/script.js"></script>
+    <script>
+      /* ============================================================
+   camera.js — Real-time camera detection
+============================================================ */
+
+      const video = document.getElementById("camera-video");
+      const canvas = document.getElementById("camera-canvas");
+      const ctx = canvas.getContext("2d");
+      const placeholder = document.getElementById("cam-placeholder");
+      const camUi = document.getElementById("cam-ui");
+      const startBtn = document.getElementById("start-btn");
+      const stopBtn = document.getElementById("stop-btn");
+      const switchBtn = document.getElementById("switch-btn");
+      const freezeBtn = document.getElementById("freeze-btn");
+      const statusDot = document.getElementById("status-dot");
+      const statusText = document.getElementById("status-text");
+      const liveDot = document.getElementById("live-dot");
+      const liveEmpty = document.getElementById("live-empty");
+      const liveResults = document.getElementById("live-results");
+      const liveClear = document.getElementById("live-clear");
+      const camSelector = document.getElementById("camera-selector");
+      const camSelectorWrap = document.getElementById("camera-selector-wrap");
+      const intervalSlider = document.getElementById("interval-slider");
+      const intervalLabel = document.getElementById("interval-label");
+      const intervalPanel = document.getElementById("interval-panel");
+      const statFrames = document.getElementById("stat-frames");
+      const statDetections = document.getElementById("stat-detections");
+      const statCamera = document.getElementById("stat-camera");
+      const statTimeEl = document.getElementById("stat-time");
+
+      // State
+      let stream = null;
+      let detecting = false;
+      let frozen = false;
+      let detectTimer = null;
+      let sessionStart = null;
+      let sessionTimer = null;
+      let totalFrames = 0;
+      let totalDetections = 0;
+      let currentFacingMode = "environment"; // back camera default
+      let availableCameras = [];
+
+      // ── Enumerate cameras ──────────────────────────────────────────
+      async function enumCameras() {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          availableCameras = devices.filter((d) => d.kind === "videoinput");
+          if (availableCameras.length > 1) {
+            camSelectorWrap.style.display = "block";
+            camSelector.innerHTML = availableCameras
+              .map(
+                (d, i) =>
+                  `<option value="${d.deviceId}">${d.label || `Kamera ${i + 1}`}</option>`,
+              )
+              .join("");
+          }
+        } catch (_) {}
+      }
+
+      // ── Start camera ──────────────────────────────────────────────
+      async function startCamera(deviceId = null) {
+        try {
+          if (stream) stopCamera();
+
+          const constraints = {
+            video: deviceId
+              ? { deviceId: { exact: deviceId } }
+              : {
+                  facingMode: currentFacingMode,
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 },
+                },
+            audio: false,
+          };
+
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          video.srcObject = stream;
+
+          await new Promise((resolve) => (video.onloadedmetadata = resolve));
+          video.play();
+
+          // Size canvas to video
+          canvas.width = video.videoWidth || 1280;
+          canvas.height = video.videoHeight || 720;
+
+          // Show elements
+          placeholder.style.display = "none";
+          video.style.display = "block";
+          canvas.style.display = "block";
+          camUi.style.display = "block";
+          intervalPanel.style.display = "block";
+
+          startBtn.style.display = "none";
+          stopBtn.style.display = "flex";
+          switchBtn.style.display = "flex";
+          freezeBtn.style.display = "flex";
+
+          // Status
+          statusDot.classList.add("active");
+          statusText.textContent = "Kamera aktif — mendeteksi…";
+          statusText.style.color = "#34d399";
+          liveDot.style.display = "inline-block";
+
+          // Determine camera label
+          const track = stream.getVideoTracks()[0];
+          statCamera.textContent =
+            track?.label?.slice(0, 20) ||
+            (currentFacingMode === "environment"
+              ? "Kamera Belakang"
+              : "Kamera Depan");
+
+          // Enumerate cameras after permission granted
+          await enumCameras();
+
+          // Session timer
+          sessionStart = Date.now();
+          sessionTimer = setInterval(updateSessionTime, 1000);
+
+          detecting = true;
+          scheduleDetection();
+          showToast("Kamera berhasil diaktifkan!", "success");
+        } catch (err) {
+          showToast("Tidak dapat mengakses kamera: " + err.message, "error");
+          console.error(err);
+        }
+      }
+
+      // ── Stop camera ───────────────────────────────────────────────
+      function stopCamera() {
+        detecting = false;
+        if (detectTimer) clearTimeout(detectTimer);
+        if (sessionTimer) clearInterval(sessionTimer);
+
+        if (stream) {
+          stream.getTracks().forEach((t) => t.stop());
+          stream = null;
+        }
+
+        video.style.display = "none";
+        canvas.style.display = "none";
+        camUi.style.display = "none";
+        placeholder.style.display = "flex";
+        intervalPanel.style.display = "none";
+
+        startBtn.style.display = "flex";
+        stopBtn.style.display = "none";
+        switchBtn.style.display = "none";
+        freezeBtn.style.display = "none";
+
+        statusDot.classList.remove("active");
+        statusText.textContent = "Kamera tidak aktif";
+        statusText.style.color = "";
+        liveDot.style.display = "none";
+
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Reset live results
+        showLiveState("empty");
+      }
+
+      // ── Switch camera ─────────────────────────────────────────────
+      async function switchCamera() {
+        currentFacingMode =
+          currentFacingMode === "environment" ? "user" : "environment";
+        await startCamera();
+        showToast(
+          `Beralih ke kamera ${currentFacingMode === "environment" ? "belakang" : "depan"}`,
+          "info",
+        );
+      }
+
+      // ── Freeze / Resume ────────────────────────────────────────────
+      function toggleFreeze() {
+        frozen = !frozen;
+        freezeBtn.textContent = frozen ? "▶" : "⏸";
+        freezeBtn.title = frozen ? "Resume" : "Freeze";
+        if (!frozen) scheduleDetection();
+        showToast(frozen ? "Frame di-freeze" : "Deteksi dilanjutkan", "info");
+      }
+
+      // ── Schedule detection loop ────────────────────────────────────
+      function scheduleDetection() {
+        if (!detecting || frozen) return;
+        const interval = parseFloat(intervalSlider.value) * 1000;
+        detectTimer = setTimeout(runDetection, interval);
+      }
+
+      // ── Run one detection cycle ────────────────────────────────────
+      async function runDetection() {
+        if (!detecting || frozen || !video.readyState >= 2) {
+          scheduleDetection();
+          return;
+        }
+
+        totalFrames++;
+        statFrames.textContent = totalFrames;
+
+        // Capture frame to canvas
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Convert canvas to base64 (JPEG for speed)
+        const base64 = canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
+
+        try {
+          const { predictions } = await detectDiseaseBase64(
+            base64,
+            canvas.width,
+            canvas.height,
+          );
+
+          // Redraw frame
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          if (predictions && predictions.length > 0) {
+            drawBBoxes(canvas, predictions, canvas.width, canvas.height);
+            totalDetections++;
+            statDetections.textContent = totalDetections;
+            showLiveState("results", predictions);
+          } else {
+            showLiveState("clear");
+          }
+        } catch (err) {
+          console.warn("Detection error:", err.message);
+          // Redraw clean frame anyway
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        }
+
+        scheduleDetection();
+      }
+
+      // ── Update live result panel ──────────────────────────────────
+      function showLiveState(state, predictions = []) {
+        liveEmpty.style.display = state === "empty" ? "flex" : "none";
+        liveResults.style.display = state === "results" ? "flex" : "none";
+        liveClear.style.display = state === "clear" ? "block" : "none";
+
+        if (state === "results" && predictions.length) {
+          predictions.sort((a, b) => b.confidence - a.confidence);
+          liveResults.innerHTML = predictions
+            .map((p) => {
+              const key = normalizeLabel(p.class);
+              const info = key ? DISEASE_INFO[key] : null;
+              const pct = Math.round(p.confidence * 100);
+              return `
+        <div style="
+          display:flex;align-items:center;gap:12px;
+          padding:14px 16px;
+          background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(168,85,247,0.05));
+          border:1px solid rgba(99,102,241,0.2);
+          border-radius:14px;
+          animation:fade-in-up 0.3s ease;
+        ">
+          <span style="font-size:1.6rem;">${info?.emoji || "🔵"}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:var(--font-display);font-weight:700;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              ${info?.name.split("(")[0].trim() || p.class}
+            </div>
+            <div class="progress-bar" style="margin-top:6px;height:5px;">
+              <div class="progress-fill" style="width:${pct}%;"></div>
+            </div>
+          </div>
+          <span class="badge-confidence ${confidenceBadgeClass(p.confidence)}" style="font-size:0.78rem;flex-shrink:0;">${pct}%</span>
+        </div>`;
+            })
+            .join("");
+        }
+      }
+
+      // ── Session timer ─────────────────────────────────────────────
+      function updateSessionTime() {
+        const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+        const m = String(Math.floor(elapsed / 60)).padStart(2, "0");
+        const s = String(elapsed % 60).padStart(2, "0");
+        statTimeEl.textContent = `${m}:${s}`;
+      }
+
+      // ── Interval slider ────────────────────────────────────────────
+      intervalSlider.addEventListener("input", () => {
+        intervalLabel.textContent = `${intervalSlider.value} detik`;
+      });
+
+      // ── Camera selector dropdown ───────────────────────────────────
+      camSelector.addEventListener("change", () => {
+        startCamera(camSelector.value);
+      });
+
+      // ── Button listeners ──────────────────────────────────────────
+      startBtn.addEventListener("click", () => startCamera());
+      stopBtn.addEventListener("click", () => stopCamera());
+      switchBtn.addEventListener("click", () => switchCamera());
+      freezeBtn.addEventListener("click", () => toggleFreeze());
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", () => {
+        if (stream) stream.getTracks().forEach((t) => t.stop());
+      });
+    </script>
+  </body>
+</html>
