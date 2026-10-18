@@ -1,0 +1,195 @@
+/* ============================================================
+   DermAgent Chatbot UI
+   ============================================================ */
+#dermagent-widget {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9999;
+  font-family: "DM Sans", sans-serif;
+}
+#dermagent-toggle {
+  width: 58px;
+  height: 58px;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: #fff;
+  box-shadow: 0 12px 35px rgba(99, 102, 241, 0.35);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+#dermagent-toggle:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 42px rgba(99, 102, 241, 0.45);
+}
+#dermagent-toggle .da-icon {
+  font-size: 1.45rem;
+}
+#dermagent-panel {
+  position: absolute;
+  right: 0;
+  bottom: 72px;
+  width: min(390px, calc(100vw - 32px));
+  height: min(590px, calc(100vh - 110px));
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  background: rgba(15, 18, 30, 0.97);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(18px);
+}
+#dermagent-panel.open {
+  display: flex;
+  animation: dermagentIn 0.2s ease-out;
+}
+@keyframes dermagentIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.da-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.da-avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  font-weight: 800;
+  color: #fff;
+}
+.da-head-text {
+  flex: 1;
+}
+.da-head-text strong {
+  display: block;
+  color: #fff;
+  font-size: 0.96rem;
+}
+.da-head-text span {
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+.da-close {
+  border: 0;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.da-context {
+  margin: 12px 14px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.08);
+  font-size: 0.74rem;
+  color: #c7d2fe;
+  display: none;
+}
+.da-context strong {
+  color: #fff;
+}
+.da-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.da-msg {
+  max-width: 88%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.da-msg.bot {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.07);
+  color: #e5e7eb;
+  border-bottom-left-radius: 5px;
+}
+.da-msg.user {
+  align-self: flex-end;
+  background: #6366f1;
+  color: #fff;
+  border-bottom-right-radius: 5px;
+}
+.da-typing {
+  opacity: 0.65;
+}
+.da-input-wrap {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+#dermagent-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  outline: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  padding: 11px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+}
+#dermagent-input:focus {
+  border-color: rgba(129, 140, 248, 0.7);
+}
+#dermagent-send {
+  width: 42px;
+  border: 0;
+  border-radius: 12px;
+  background: #6366f1;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+}
+#dermagent-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.da-disclaimer {
+  padding: 0 14px 10px;
+  color: #6b7280;
+  font-size: 0.65rem;
+  line-height: 1.4;
+}
+@media (max-width: 480px) {
+  #dermagent-widget {
+    right: 16px;
+    bottom: 16px;
+  }
+  #dermagent-panel {
+    right: -2px;
+    width: calc(100vw - 32px);
+    height: min(600px, calc(100vh - 90px));
+  }
+}

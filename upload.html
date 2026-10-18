@@ -6,6 +6,7 @@
     <title>Upload Gambar | Wotech Skin Detection</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/chatbot.css" />
   </head>
   <body>
     <div class="mesh-bg" aria-hidden="true"><div class="mesh-orb"></div></div>
@@ -623,7 +624,7 @@
       >
         <a href="index.html" class="logo-text">⚕ Wotech</a>
         <p style="color: var(--muted); font-size: 0.85rem">
-          © 2025 Team Wotech · YOLOv11 + Roboflow
+          © 2026 Team Wotech · YOLOv11 + Roboflow
         </p>
       </div>
     </footer>
@@ -744,6 +745,20 @@
         try {
           const { predictions, time } = await detectDisease(currentFile);
           currentPredictions = predictions;
+          if (
+            predictions &&
+            predictions.length > 0 &&
+            window.saveDetectionContext
+          ) {
+            const topPrediction = [...predictions].sort(
+              (a, b) => b.confidence - a.confidence,
+            )[0];
+            window.saveDetectionContext(
+              topPrediction.class,
+              topPrediction.confidence,
+              "upload gambar",
+            );
+          }
           clearInterval(msgInterval);
           renderResults(predictions, time);
           drawOverlay(predictions);
@@ -897,5 +912,6 @@
         );
       }
     </script>
+    <script src="js/chatbot.js"></script>
   </body>
 </html>

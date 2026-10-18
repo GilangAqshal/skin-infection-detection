@@ -6,6 +6,7 @@
     <title>Camera Detection | Wotech Skin Detection</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/chatbot.css" />
   </head>
   <body>
     <div class="mesh-bg" aria-hidden="true"><div class="mesh-orb"></div></div>
@@ -506,7 +507,7 @@
       >
         <a href="index.html" class="logo-text">⚕ Wotech</a>
         <p style="color: var(--muted); font-size: 0.85rem">
-          © 2025 Team Wotech · YOLOv11 + Roboflow
+          © 2026 Team Wotech · YOLOv11 + Roboflow
         </p>
       </div>
     </footer>
@@ -729,6 +730,16 @@
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
           if (predictions && predictions.length > 0) {
+            if (window.saveDetectionContext) {
+              const topPrediction = [...predictions].sort(
+                (a, b) => b.confidence - a.confidence,
+              )[0];
+              window.saveDetectionContext(
+                topPrediction.class,
+                topPrediction.confidence,
+                "kamera real-time",
+              );
+            }
             drawBBoxes(canvas, predictions, canvas.width, canvas.height);
             totalDetections++;
             statDetections.textContent = totalDetections;
@@ -812,5 +823,6 @@
         if (stream) stream.getTracks().forEach((t) => t.stop());
       });
     </script>
+    <script src="js/chatbot.js"></script>
   </body>
 </html>
