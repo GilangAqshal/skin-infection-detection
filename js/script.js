@@ -343,10 +343,10 @@ function animateCounter(el, target, suffix = "%", duration = 1400) {
   const start = performance.now();
   const update = (now) => {
     const progress = Math.min((now - start) / duration, 1);
-    const ease = 1 - Math.pow(1 - progress, 3); // ease-out-cubic
-    el.textContent = (target * ease).toFixed(1) + suffix;
+    const ease = 1 - Math.pow(1 - progress, 3);
+    el.textContent = (target * ease).toFixed(2) + suffix;
     if (progress < 1) requestAnimationFrame(update);
-    else el.textContent = target + suffix;
+    else el.textContent = target.toFixed(2) + suffix;
   };
   requestAnimationFrame(update);
 }
