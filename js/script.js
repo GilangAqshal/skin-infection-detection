@@ -6,15 +6,20 @@
 // ── CONFIG — GANTI DENGAN API KEY ROBOFLOW ANDA ─────────────
 const ROBOFLOW_CONFIG = {
   apiKey: "wt1iuw854bubo8l9qNN1", // Private API Key milikmu
-  modelId: "wotech-team/deteksi_final_clean-1-yolo11s-t1", // CUKUP NAMA PROJECT (Hapus "/3")
+  workspace: "wotech-team",
+  workflowId:
+    "deteksifinalclean-1-yolo11s-t1-vdeteksifinalclean-1-yolo11s-t1-logic",
   // version: 3, // Versi dataset v3 (7 kelas)
 };
 
 // API endpoint builder
-function roboflowUrl(mode = "image") {
-  const base = "https://detect.roboflow.com";
-  return `${base}/${ROBOFLOW_CONFIG.modelId}/${ROBOFLOW_CONFIG.version}?api_key=${ROBOFLOW_CONFIG.apiKey}`;
+function roboflowUrl() {
+  return `https://serverless.roboflow.com/${ROBOFLOW_CONFIG.workspace}/workflows/${ROBOFLOW_CONFIG.workflowId}`;
 }
+// function roboflowUrl(mode = "image") {
+//   const base = "https://detect.roboflow.com";
+//   return `${base}/${ROBOFLOW_CONFIG.modelId}/${ROBOFLOW_CONFIG.version}?api_key=${ROBOFLOW_CONFIG.apiKey}`;
+// }
 
 // ── Disease Database ─────────────────────────────────────────
 const DISEASE_INFO = {
