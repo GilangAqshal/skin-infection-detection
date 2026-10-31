@@ -1,25 +1,20 @@
 // ============================================================
 //  script.js — Wotech Skin Detection
-//  Shared utilities + Roboflow API integration
+//  Shared utilities + Roboflow Workflow API integration
 // ============================================================
 
-// ── CONFIG — GANTI DENGAN API KEY ROBOFLOW ANDA ─────────────
+// ── CONFIG ───────────────────────────────────────────────────
 const ROBOFLOW_CONFIG = {
-  apiKey: "wt1iuw854bubo8l9qNN1", // Private API Key milikmu
+  apiKey: "wt1iuw854bubo8l9qNN1",
   workspace: "wotech-team",
   workflowId:
     "deteksifinalclean-1-yolo11s-t1-vdeteksifinalclean-1-yolo11s-t1-logic",
-  // version: 3, // Versi dataset v3 (7 kelas)
 };
 
-// API endpoint builder
+// Endpoint Workflow Roboflow
 function roboflowUrl() {
   return `https://serverless.roboflow.com/${ROBOFLOW_CONFIG.workspace}/workflows/${ROBOFLOW_CONFIG.workflowId}`;
 }
-// function roboflowUrl(mode = "image") {
-//   const base = "https://detect.roboflow.com";
-//   return `${base}/${ROBOFLOW_CONFIG.modelId}/${ROBOFLOW_CONFIG.version}?api_key=${ROBOFLOW_CONFIG.apiKey}`;
-// }
 
 // ── Disease Database ─────────────────────────────────────────
 const DISEASE_INFO = {
@@ -145,7 +140,7 @@ function normalizeLabel(label) {
     kutil: "kutil",
     wart: "kutil",
   };
-  const lw = label.toLowerCase().trim();
+  const lw = String(label).toLowerCase().trim();
   for (const [k, v] of Object.entries(map)) {
     if (lw.includes(k)) return v;
   }
@@ -236,51 +231,64 @@ function confidenceBadgeClass(conf) {
   return "badge-low";
 }
 
-// ── Format seconds ────────────────────────────────────────────
+// ── Format milliseconds ───────────────────────────────────────
 function formatMs(ms) {
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(2)}s`;
 }
 
-// ── Call Roboflow API (image upload) ─────────────────────────
-async function detectDisease(imageFile) {
-  const url = roboflowUrl("image");
-  const form = new FormData();
-  form.append("file", imageFile);
+// ── Roboflow Workflow API ─────────────────────────────────────
 
-  const t0 = Date.now();
-  const res = await fetch(url, { method: "POST", body: form });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  const time = Date.now() - t0;
-  return { predictions: data.predictions || [], time };
+// Ambil array prediksi dari respons Workflow
+function extractPredictions(data) {
+  const out = data?.outputs?.[0] ?? data;
+  const p = out?.predictions;
+  if (Array.isArray(p)) return p;
+  if (Array.isArray(p?.predictions)) return p.predictions;
+  return [];
 }
 
-// ── Call Roboflow API (base64) ────────────────────────────────
-// ── Call Roboflow API (base64) ────────────────────────────────
-async function detectDiseaseBase64(base64Str, width, height) {
-  const url = `${roboflowUrl()}&format=json`; // ← Ditaruh di baris pertama setelah pembuka fungsi
-  const t0 = Date.now();
+// File gambar → string base64 (tanpa prefix data URL)
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
-  // Roboflow accepts image/jpeg base64 via multipart or raw body
-  // Using the URL-based inference with base64
-  const res = await fetch(url, {
+// Kirim gambar (base64) ke Workflow dan kembalikan prediksi
+async function runWorkflow(base64) {
+  const t0 = Date.now();
+  const res = await fetch(roboflowUrl(), {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: base64Str,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${ROBOFLOW_CONFIG.apiKey}`,
+    },
+    body: JSON.stringify({
+      inputs: { image: { type: "base64", value: base64 } },
+    }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || `HTTP ${res.status}`);
   }
+
   const data = await res.json();
-  const time = Date.now() - t0;
-  return { predictions: data.predictions || [], time };
+  console.log("Respons Roboflow:", data); // hapus baris ini setelah berhasil
+  return { predictions: extractPredictions(data), time: Date.now() - t0 };
+}
+
+// Upload gambar (dipakai upload.html)
+async function detectDisease(imageFile) {
+  return runWorkflow(await fileToBase64(imageFile));
+}
+
+// Kamera (dipakai camera.html)
+async function detectDiseaseBase64(base64Str) {
+  return runWorkflow(base64Str);
 }
 
 // ── Draw bounding boxes on canvas ────────────────────────────
@@ -348,7 +356,7 @@ function animateCounter(el, target, suffix = "%", duration = 1400) {
   const start = performance.now();
   const update = (now) => {
     const progress = Math.min((now - start) / duration, 1);
-    const ease = 1 - Math.pow(1 - progress, 3);
+    const ease = 1 - Math.pow(1 - progress, 3); // ease-out-cubic
     el.textContent = (target * ease).toFixed(2) + suffix;
     if (progress < 1) requestAnimationFrame(update);
     else el.textContent = target.toFixed(2) + suffix;
