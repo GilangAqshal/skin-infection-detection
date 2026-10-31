@@ -6,8 +6,8 @@
 // ── CONFIG — GANTI DENGAN API KEY ROBOFLOW ANDA ─────────────
 const ROBOFLOW_CONFIG = {
   apiKey: "wt1iuw854bubo8l9qNN1", // Private API Key milikmu
-  modelId: "deteksi-penyakit-kulit-2-kfwzc", // CUKUP NAMA PROJECT (Hapus "/3")
-  version: 3, // Versi dataset v3 (7 kelas)
+  modelId: "wotech-team/deteksi_final_clean-1-yolo11s-t1", // CUKUP NAMA PROJECT (Hapus "/3")
+  // version: 3, // Versi dataset v3 (7 kelas)
 };
 
 // API endpoint builder
