@@ -1,10 +1,19 @@
 const COLLECTION = "dermagent_docs";
 const KEYSPACE = "default_keyspace";
-const EMBED_MODEL = "gemini-embedding-001"; // 3072 dimensi, cocok dengan collection kamu
-const DEFAULT_MODEL = "gemini-3.8-flash";
+const EMBED_MODEL = "gemini-embedding-001";
+const DEFAULT_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 const FALLBACK_MODEL = "gemini-flash-lite-latest";
 
-const SYSTEM_PROMPT = `Kamu adalah DermAgent (Dermatology Agent), asisten informasi penyakit kulit untuk pengguna awam. Kamu membantu pengguna memahami hasil deteksi Computer Vision dan informasi umum penyakit kulit berdasarkan knowledge base.
+// Keep each external request short so the Vercel function can finish
+// before its configured maxDuration.
+const TIMEOUT = {
+  embedding: 10000,
+  astra: 4000,
+  gemini: 15000,
+  geminiFallback: 10000,
+};
+
+const SYSTEM_PROMPT = `Kamu adalah DermAgent (Dermatology Agent), asisten informasi penyakit kulit untuk pengguna awam. Kamu membantu pengguna memahami hasil deteksi Computer Vision dan informasi umum penyakit kulit.
 
 GAYA JAWABAN
 - Bahasa Indonesia yang ramah, natural, mudah dipahami, tidak menakut-nakuti, tidak menghakimi.
@@ -19,9 +28,10 @@ TUGAS
 - Mengenali tanda yang membutuhkan pemeriksaan medis.
 
 ATURAN PENTING
-- Gunakan KONTEKS (knowledge base) sebagai sumber utama. Jangan mengarang informasi yang tidak ada di konteks. Jika tidak tersedia, katakan begitu dan sarankan konsultasi ke tenaga medis.
+- Jika KONTEKS knowledge base tersedia, gunakan sebagai sumber utama dan jangan mengarang informasi yang tidak ada di konteks.
+- Jika KONTEKS kosong/tidak tersedia, jangan berpura-pura telah membaca knowledge base. Kamu boleh memberi informasi kesehatan umum yang aman berdasarkan pengetahuan umum, dan jelaskan bila informasi khusus dari knowledge base sedang tidak tersedia.
 - Hasil deteksi adalah prediksi model, BUKAN diagnosis medis. Gunakan istilah "hasil deteksi", "prediksi model", atau "indikasi dari model", bukan "diagnosis".
-- Confidence adalah skor keyakinan model, bukan persentase kepastian diagnosis. Jika confidence tinggi, jelaskan model cukup yakin tetapi hasil tetap bukan diagnosis. Jika sedang/rendah, jelaskan keterbatasannya dan sarankan verifikasi.
+- Confidence adalah skor keyakinan model, bukan persentase kepastian diagnosis.
 - Jangan memberi resep, dosis obat, atau instruksi pengobatan yang berisiko.
 - Jika ada tanda bahaya (sulit bernapas/menelan, bengkak wajah/lidah/tenggorokan, ruam menyebar cepat, sangat nyeri, demam disertai ruam, atau kondisi berat lain), prioritaskan anjuran segera mencari pertolongan medis.
 - Hasil Computer Vision hanyalah alat bantu informasi, bukan pengganti dokter.
@@ -32,8 +42,27 @@ JIKA PENGGUNA MENANYAKAN HASIL DETEKSI, jawab ringkas dengan urutan:
 3. Apa yang sebaiknya dilakukan.
 4. Kapan perlu ke tenaga medis (jika relevan).`;
 
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(`Permintaan ke layanan eksternal melewati batas ${Math.ceil(timeoutMs / 1000)} detik.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readJson(response) {
+  return response.json().catch(() => ({}));
+}
+
 async function embedQuery(text) {
-  const r = await fetch(
+  const r = await fetchWithTimeout(
     `https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:embedContent`,
     {
       method: "POST",
@@ -47,39 +76,79 @@ async function embedQuery(text) {
         taskType: "RETRIEVAL_QUERY",
       }),
     },
+    TIMEOUT.embedding,
   );
-  const d = await r.json().catch(() => ({}));
+
+  const d = await readJson(r);
   if (!r.ok) {
-    throw new Error(`Embedding gagal: ${d.error?.message || r.status}`);
+    throw new Error(`Gemini Embedding gagal (HTTP ${r.status}): ${d.error?.message || "periksa GOOGLE_API_KEY dan kuota"}`);
   }
-  return d.embedding.values;
+  const values = d.embedding?.values;
+  if (!Array.isArray(values) || !values.length) {
+    throw new Error("Gemini Embedding tidak mengembalikan vector.");
+  }
+  return values;
 }
 
 async function searchAstra(vector) {
-  const base = process.env.ASTRA_DB_API_ENDPOINT.replace(/\/+$/, "");
-  const r = await fetch(`${base}/api/json/v1/${KEYSPACE}/${COLLECTION}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Token: process.env.ASTRA_DB_APP_TOKEN,
+  const endpoint = process.env.ASTRA_DB_API_ENDPOINT;
+  const base = endpoint.replace(/\/+$/, "");
+  const url = `${base}/api/json/v1/${KEYSPACE}/${COLLECTION}`;
+  const payload = {
+    find: {
+      sort: { $vector: vector },
+      options: { limit: 4 },
+      projection: { page_content: 1 },
     },
-    body: JSON.stringify({
-      find: {
-        sort: { $vector: vector },
-        options: { limit: 4 },
-        projection: { page_content: 1 },
-      },
-    }),
-  });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok || d.errors) {
-    throw new Error(`Astra DB gagal: ${d.errors?.[0]?.message || r.status}`);
+  };
+
+  // Retry transient 503/502/504 responses. An HTTP 503 can occur while a
+  // free-tier database is resuming, but persistent errors must remain visible.
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const r = await fetchWithTimeout(
+        url,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Token: process.env.ASTRA_DB_APP_TOKEN,
+          },
+          body: JSON.stringify(payload),
+        },
+        TIMEOUT.astra,
+      );
+
+      const d = await readJson(r);
+      if (r.ok && !d.errors) {
+        return (d.data?.documents || [])
+          .map((x) => x.page_content)
+          .filter(Boolean);
+      }
+
+      const detail = d.errors?.[0]?.message || `HTTP ${r.status}`;
+      lastError = new Error(`Astra DB gagal (HTTP ${r.status}): ${detail}`);
+
+      // These are configuration/permission/schema failures; retrying won't fix them.
+      if (![429, 500, 502, 503, 504].includes(r.status)) {
+        throw lastError;
+      }
+    } catch (error) {
+      lastError = error;
+      // A timeout is transient. Other errors may be network errors; retry briefly.
+    }
+
+    if (attempt < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+    }
   }
-  return (d.data?.documents || []).map((x) => x.page_content).filter(Boolean);
+
+  throw lastError || new Error("Astra DB tidak dapat dihubungi.");
 }
 
-async function callGemini(model, contents) {
-  const r = await fetch(
+async function callGemini(model, contents, timeoutMs) {
+  const r = await fetchWithTimeout(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
       method: "POST",
@@ -90,45 +159,41 @@ async function callGemini(model, contents) {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents,
-        generationConfig: { temperature: 0.2 },
+        generationConfig: { temperature: 0.2, maxOutputTokens: 500 },
       }),
     },
+    timeoutMs,
   );
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error?.message || `HTTP ${r.status}`);
+
+  const d = await readJson(r);
+  if (!r.ok) throw new Error(`Gemini ${model} gagal (HTTP ${r.status}): ${d.error?.message || "permintaan gagal"}`);
   const parts = d.candidates?.[0]?.content?.parts || [];
-  const text = parts
+  const answer = parts
     .filter((p) => !p.thought)
     .map((p) => p.text || "")
     .join("")
     .trim();
-  if (!text) throw new Error("Model tidak mengembalikan teks");
-  return text;
+  if (!answer) throw new Error("Gemini tidak mengembalikan teks.");
+  return answer;
 }
 
 async function generateAnswer(contents) {
-  const models = [process.env.GEMINI_MODEL || DEFAULT_MODEL, FALLBACK_MODEL];
-  let lastError;
-  for (const model of [...new Set(models)]) {
-    try {
-      return await callGemini(model, contents);
-    } catch (e) {
-      lastError = e;
-      console.error(`Model ${model} gagal:`, e.message);
-    }
+  try {
+    return await callGemini(DEFAULT_MODEL, contents, TIMEOUT.gemini);
+  } catch (primaryError) {
+    console.error(`Model utama ${DEFAULT_MODEL} gagal:`, primaryError.message);
+    return callGemini(FALLBACK_MODEL, contents, TIMEOUT.geminiFallback);
   }
-  throw new Error(`Gemini gagal: ${lastError.message}`);
 }
 
 function cleanHistory(history) {
   if (!Array.isArray(history)) return [];
   const out = history
     .slice(-6)
-    .filter(
-      (h) =>
-        h &&
-        typeof h.text === "string" &&
-        (h.role === "user" || h.role === "bot"),
+    .filter((h) =>
+      h &&
+      typeof h.text === "string" &&
+      (h.role === "user" || h.role === "bot"),
     )
     .map((h) => ({
       role: h.role === "bot" ? "model" : "user",
@@ -146,6 +211,7 @@ module.exports = async (req, res) => {
     "ASTRA_DB_APP_TOKEN",
     "ASTRA_DB_API_ENDPOINT",
   ].filter((k) => !process.env[k]);
+
   if (missing.length) {
     return res.status(500).json({
       error: `Environment variable belum diisi: ${missing.join(", ")}`,
@@ -154,7 +220,7 @@ module.exports = async (req, res) => {
 
   const { question, detection, history } = req.body || {};
   if (!question || typeof question !== "string" || question.length > 1000) {
-    return res.status(400).json({ error: "Pertanyaan tidak valid" });
+    return res.status(400).json({ error: "Pertanyaan tidak valid." });
   }
 
   try {
@@ -165,22 +231,41 @@ module.exports = async (req, res) => {
       .join(" ")
       .slice(0, 1500);
 
-    const vector = await embedQuery(retrievalQuery);
-    const docs = await searchAstra(vector);
+    let docs = [];
+    let knowledgeBaseAvailable = true;
+    try {
+      const vector = await embedQuery(retrievalQuery);
+      docs = await searchAstra(vector);
+      if (!docs.length) knowledgeBaseAvailable = false;
+    } catch (retrievalError) {
+      knowledgeBaseAvailable = false;
+      console.error("Retrieval knowledge base gagal:", retrievalError.message);
+    }
 
     const detectionText = detection?.disease
       ? `Hasil deteksi website: ${String(detection.disease).slice(0, 60)}, confidence ${Number(detection.confidence) || 0}% (sumber: ${String(detection.source || "deteksi").slice(0, 40)}).`
       : "Belum ada hasil deteksi yang tersimpan.";
 
-    const userText = `KONTEKS:\n${docs.join("\n---\n") || "(kosong)"}\n\n${detectionText}\n\nPERTANYAAN PENGGUNA:\n${question}`;
+    const kbStatus = knowledgeBaseAvailable
+      ? "Knowledge base berhasil diakses."
+      : "Knowledge base sedang tidak tersedia atau tidak mengembalikan dokumen. Jangan mengklaim telah mengambil informasi dari knowledge base.";
+
+    const userText = `STATUS KNOWLEDGE BASE: ${kbStatus}\n\nKONTEKS:\n${docs.join("\n---\n") || "(tidak tersedia)"}\n\n${detectionText}\n\nPERTANYAAN PENGGUNA:\n${question}`;
 
     const answer = await generateAnswer([
       ...pastTurns,
       { role: "user", parts: [{ text: userText }] },
     ]);
-    return res.status(200).json({ answer });
+
+    return res.status(200).json({
+      answer,
+      knowledgeBaseAvailable,
+      ...(knowledgeBaseAvailable ? {} : { notice: "Knowledge base sementara tidak tersedia; jawaban menggunakan informasi umum." }),
+    });
   } catch (e) {
-    console.error(e);
-    return res.status(502).json({ error: e.message });
+    console.error("DermAgent API error:", e.message);
+    return res.status(502).json({
+      error: e.message || "Layanan AI sedang tidak tersedia. Silakan coba lagi.",
+    });
   }
 };
